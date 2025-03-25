@@ -12,22 +12,26 @@
 typedef struct {
   char *buf;
   uint32_t front;
+  uint32_t back;
+  uint32_t p;
 } GapBuffer;
 
 typedef struct {
   uint16_t x, y;
+  uint16_t row;
 } Editor;
 
 int main() {
   
   Editor e = { 0 };
   GapBuffer g = { 0 };
-  g.buf = malloc(100);
+  g.buf = malloc(10000);
   int c;
 
   initscr();
   raw();
   //cbreak();
+  keypad(stdscr, TRUE);
   noecho();
 
   while ((c = getch()) != STR_Q) {
@@ -37,27 +41,28 @@ int main() {
       g.front++;
       e.y += 1;
       e.x = 0;
+      e.row += 1;
     }
 
-    if (c == LK_UP) {
+    if (c == KEY_UP) {
       if (e.y > 0) {
-	e.y -= 1;
+          e.y -= 1;
       }
     }
     
     if (c == LK_DOWN) {
-      if (e.y < 10) {
-	e.y += 1;
+      if (e.y < e.row) {
+        e.y += 1;
       }
     } 
 
-    if (c == LK_RIGHT) {
+    if (c == KEY_RIGHT) {
       if (e.x < 10) {
-	e.x += 1;
+        e.x += 1;
       }
     }
     
-    if (c == LK_LEFT) {
+    if (c == KEY_LEFT) {
       if (e.x > 0) {
         e.x -= 1;
       }
@@ -67,7 +72,13 @@ int main() {
       g.buf[g.front] = c;
       g.front++;
       e.x += 1;
-    } 
+    }
+
+    if (c == 127) {
+      g.buf[g.front] = 0;
+      g.front--;
+      e.x -= 1;
+    }
     
     clear();
     refresh();
@@ -78,7 +89,7 @@ int main() {
   }
   
   clear();
-  move(0,0);
+  move(0, 0);
   endwin();
   return 0;
 }
