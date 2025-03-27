@@ -2,8 +2,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define STR_Q 17
+#include <stdio.h>
 
+#define STR_Q 17
+#define LK_ENTER 10
 #define LK_UP 65
 #define LK_DOWN 66
 #define LK_RIGHT 67
@@ -12,7 +14,7 @@
 typedef struct {
   char *buf;
   uint32_t front;
-  uint32_t back;
+  uint32_t gap;
   uint32_t p;
 } GapBuffer;
 
@@ -21,19 +23,38 @@ typedef struct {
   uint16_t row;
 } Editor;
 
-int main() {
-  
-  Editor e = { 0 };
+int main(int argc, char **argv) {
+ 
+  Editor e = { .row = 1 };
   GapBuffer g = { 0 };
   g.buf = malloc(10000);
-  int c;
 
+  for (int i = 1; i < argc; i++) {
+    FILE *file = fopen(argv[1], "r");
+    if (!file) {
+      exit(1);
+    }
+    
+    char c;
+    for (int j = 0; (c = fgetc(file)) != EOF; j++) {
+      //printf("%c", c);
+      g.buf[j] = c;
+    }
+
+    //printf("%s", g.buf);
+    //exit(0);
+  }
+  
   initscr();
   raw();
   //cbreak();
   keypad(stdscr, TRUE);
   noecho();
 
+  printw(g.buf);
+  refresh();
+
+  int c;
   while ((c = getch()) != STR_Q) {
     
     if (c == 10) {
