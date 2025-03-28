@@ -7,7 +7,7 @@
 #define STR_Q 17
 #define LK_ENTER 10
 #define LK_UP 65
-#define LK_DOWN 66
+#define LK_DOWN 258
 #define LK_RIGHT 67
 #define LK_LEFT 68
 
@@ -20,13 +20,13 @@ typedef struct {
 
 typedef struct {
   uint16_t x, y;
-  uint16_t row;
+  uint16_t rows;
 } Editor;
 
 int main(int argc, char **argv) {
  
-  Editor e = { .row = 1 };
-  GapBuffer g = { 0 };
+  Editor e = { .rows = 1 };
+  GapBuffer g = { .gap = 10000 };
   g.buf = malloc(10000);
 
   for (int i = 1; i < argc; i++) {
@@ -36,13 +36,10 @@ int main(int argc, char **argv) {
     }
     
     char c;
-    for (int j = 0; (c = fgetc(file)) != EOF; j++) {
-      //printf("%c", c);
-      g.buf[j] = c;
+    for (g.p = 0; (c = fgetc(file)) != EOF; g.p++) {
+      g.buf[g.p] = c;
+      e.rows += (c == '\n') ? 1 : 0;
     }
-
-    //printf("%s", g.buf);
-    //exit(0);
   }
   
   initscr();
@@ -62,7 +59,7 @@ int main(int argc, char **argv) {
       g.front++;
       e.y += 1;
       e.x = 0;
-      e.row += 1;
+      e.rows += 1;
     }
 
     if (c == KEY_UP) {
@@ -72,7 +69,8 @@ int main(int argc, char **argv) {
     }
     
     if (c == LK_DOWN) {
-      if (e.y < e.row) {
+      if (e.y < e.rows) {
+    //exit(0);
         e.y += 1;
       }
     } 
@@ -93,6 +91,8 @@ int main(int argc, char **argv) {
       g.buf[g.front] = c;
       g.front++;
       e.x += 1;
+      clear();
+      printw(g.buf);
     }
 
     if (c == 127) {
@@ -101,16 +101,18 @@ int main(int argc, char **argv) {
       e.x -= 1;
     }
     
-    clear();
+    //clear();
     refresh();
-    printw(g.buf);
-    move(10, 0);
-    printw("c: %d, e: (%d, %d), f: %d", c, e.y, e.x, g.front);
+    //printw(g.buf);
+    move(30, 0);
+    printw("                                                                                                       ");
+    move(30, 0);
+    printw("c: %d, e: (%d, %d), f: %d, lines: %d", c, e.y, e.x, g.front, e.rows);
     move(e.y, e.x);
   }
   
   clear();
-  move(0, 0);
+  //move(0, 0);
   endwin();
   return 0;
 }
