@@ -1,6 +1,7 @@
 #include <curses.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include <stdio.h>
 
@@ -25,7 +26,6 @@ typedef struct {
 
 int count_rows() {
   for (int i = 1; i < 100; i++) {
-    printw("%d", i);
     if (move(i, 0) == ERR) {
       move(0, 0);
       return i;
@@ -43,7 +43,7 @@ int count_cols() {
       return i;
     }
   }
-  printf("window has 200 cols ???\n");
+  printf("window has 500 cols ???\n");
   endwin();
   exit(0);
 }
@@ -71,24 +71,46 @@ int print_status_line(Editor *e, GapBuffer g, int c) {
   //move(e.y, e.x);
 }
 
-//void die(char *str)
+void die(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+    vprintf(format, args);
+  va_end(args);
+ 
+  //:w
+  //endwin();
+  exit(0);
+}
 
 int main(int argc, char **argv) {
 
   initscr();
   start_color();
+  atexit((void*)endwin);
   
+  //WINDOW *lineArea;
+  WINDOW *textArea;
   Editor e = { .rows = 1 };
 
-  e.cols = count_cols();  
-  e.rows = count_rows();
+  //e.cols = count_cols();  
+  //e.rows = count_rows();
+
+  getmaxyx(stdscr, e.rows, e.cols);
+  die("y = %d, x = %d\n", e.rows, e.cols);
+
+  //lineArea = newwin(e.rows, 3, 0, 0);
+  textArea = newwin(e.rows, e.cols, 0, 0);
   
-  // die!!!
-  //printf("rows: %d. cols: %d\n", e.rows, e.cols); endwin(); exit(0);
+  for (int i = 1; i < e.rows; i++) { 
+    //wprintw(lineArea, "%d\n", i);
+  }
+  //wrefresh(lineArea);
+  
+  /** die!!! */
+  //die("rows: %d. cols: %d\n", e.rows, e.cols);
 
   if (!has_colors()) {
-    printf("No Colors\n");
-    exit(1);
+    die("No Colors\n");
   }
   init_pair(1, COLOR_GREEN, COLOR_BLACK);
   init_pair(2, COLOR_BLACK, COLOR_GREEN);
@@ -99,18 +121,18 @@ int main(int argc, char **argv) {
 
   if (argc > 1) {
     read_file_to_buffer(&g, &e, argv[1]);
-    printw(g.buf);
-    move(0, 0);
-    refresh();
+    wprintw(textArea, g.buf);
+    wmove(textArea, 0, 0);
+    wrefresh(textArea);
   }
-  print_status_line(&e, g, 0);
+  //print_status_line(&e, g, 0);
 
   raw();
-  keypad(stdscr, TRUE);
+  keypad(textArea, TRUE);
   noecho();
   
   int c;
-  while ((c = getch()) != STR_Q) {
+  while ((c = wgetch(textArea)) != STR_Q) {
     
     if (c == 10) {
       g.buf[g.front] = '\n';
@@ -149,7 +171,7 @@ int main(int argc, char **argv) {
       g.buf[g.front] = c;
       g.front++;
       e.x += 1;
-      addch(c);
+      waddch(textArea, c);
       //clear();
       //printw(g.buf);
     }
@@ -161,9 +183,9 @@ int main(int argc, char **argv) {
     }
     
     //clear();
-    refresh();
+    wrefresh(textArea);
     //printw(g.buf);
-    print_status_line(&e, g, c);
+    //print_status_line(&e, g, c);
   }
   
   clear();
