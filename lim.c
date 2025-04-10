@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include <stdio.h>
 
@@ -16,7 +17,7 @@ typedef struct {
   char *buf;
   uint32_t front;
   uint32_t gap;
-  uint32_t p;
+  uint32_t point;
 } GapBuffer;
 
 typedef struct {
@@ -34,30 +35,6 @@ void die(const char *format, ...) {
   exit(0);
 }
 
-int count_rows() {
-  for (int i = 1; i < 100; i++) {
-    if (move(i, 0) == ERR) {
-      move(0, 0);
-      return i;
-    }
-  }
-  printf("window has 100 rows ???\n");
-  endwin();
-  exit(0);
-}
-
-int count_cols() {
-  for (int i = 1; i < 500; i++) {
-    if (move(0, i) == ERR) {
-      move(0, 0);
-      return i;
-    }
-  }
-  printf("window has 500 cols ???\n");
-  endwin();
-  exit(0);
-}
-
 int read_file_to_buffer(GapBuffer *g, Editor *e, char* filename) {
   FILE *file = fopen(filename, "r");
   if (!file) {
@@ -65,22 +42,28 @@ int read_file_to_buffer(GapBuffer *g, Editor *e, char* filename) {
   }
     
   char c;
-  for (g->p = 0; (c = fgetc(file)) != EOF; g->p++) {
-    g->buf[g->p] = c;
+  for (g->point = 0; (c = fgetc(file)) != EOF; g->point++) {
+    g->buf[g->point] = c;
     //e->rows += (c == '\n') ? 1 : 0;
   }
 }
 
-int print_status_line(Editor *e, GapBuffer g, int c) {
-  //move(e.rows - 1, 0);
-  //printw("                                                                                                       ");
-  move(e->rows - 1, 0);
+int print_status_line(WINDOW *statArea, Editor e, GapBuffer g, int c) {
+  wmove(statArea, 0, 0);
   attrset(COLOR_PAIR(2));
-  printw("c: %d, e: (%d, %d), f: %d, lines: %d", c, e->y, e->x, g.front, e->rows);
+  mvwprintw(statArea, 0, 0, "c: %d, e: (%d, %d), f: %d, lines: %d\t\t", c, e.y, e.x, g.front, e.rows);
   attrset(COLOR_PAIR(1));
-  //move(e.y, e.x);
 }
 
+int gb_jump(GapBuffer g) {
+  if (g.point < g.front) {
+    size_t n = g.point - g.front;
+    memmove(g.buf + g.point, g.buf + g.point + g.gap, n);
+  }
+  else if (g.point > g.front + g.gap) {
+    memmove(g.buf + g.front + g.gap, g.bu //TODO 
+  }
+}
 
 int main(int argc, char **argv) {
 
@@ -93,16 +76,18 @@ int main(int argc, char **argv) {
   WINDOW *statArea;
 
   Editor e = { .rows = 1 };
+  GapBuffer g = { .gap = 10000 };
 
+  g.buf = calloc(10000, sizeof(char));
   //e.cols = count_cols();  
   //e.rows = count_rows();
 
   getmaxyx(stdscr, e.rows, e.cols);
 
-  lineArea = newwin(e.rows - 1, 3, 0, 0);
-  textArea = newwin(e.rows - 4, e.cols - 3, 0, 0);
+  lineArea = newwin(e.rows - 1, 4, 0, 0);
+  textArea = newwin(e.rows - 1, e.cols - 4, 0, 0);
   statArea = newwin(1, e.cols, 0, 0);
-  mvwin(textArea, 0, 3);
+  mvwin(textArea, 0, 4);
   vline(ACS_VLINE, e.rows); // ??
   mvwin(statArea, e.rows - 1, 0);
   
@@ -118,8 +103,6 @@ int main(int argc, char **argv) {
   wattrset(textArea, COLOR_PAIR(1));
   wattrset(statArea, COLOR_PAIR(2));
 
-  GapBuffer g = { .gap = 10000 };
-  g.buf = malloc(10000);
 
   if (false && argc > 1) {
     read_file_to_buffer(&g, &e, argv[1]);
@@ -127,19 +110,19 @@ int main(int argc, char **argv) {
     wmove(textArea, 0, 0);
     wrefresh(textArea);
   }
-  //print_status_line(&e, g, 0);
+  print_status_line(statArea, e, g, 0);
 
   raw();
   keypad(textArea, TRUE);
   noecho();
 
-  for (int i = 1; i < e.rows; i++) { 
-    wprintw(lineArea, "%d\n", i);
+  for (int i = 0; i < e.rows; i++) { 
+    mvwprintw(lineArea, i, 0, "%d", i + 101);
   }
   wrefresh(lineArea);
   
-  wprintw(statArea, "asdasdasdasd");
-  wrefresh(statArea);
+  //wprintw(statArea, "asdasdasdasd");
+  //wrefresh(statArea);
   
   int c;
   while ((c = wgetch(textArea)) != STR_Q) {
@@ -200,7 +183,9 @@ int main(int argc, char **argv) {
     //clear();
     wrefresh(textArea);
     //printw(g.buf);
-    //print_status_line(&e, g, c);
+    print_status_line(statArea, e, g, c);
+    wrefresh(statArea);
+    wmove(textArea, e.y, e.x); 
   }
   
   clear();
