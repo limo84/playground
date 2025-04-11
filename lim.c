@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
     } 
 
     if (c == KEY_RIGHT) {
-      if (e.x < 10) {
+      if (g.point < 10) {
         gb_move_point(&g, 1);
         e.x += 1;
         wmove(textArea, e.y, e.x);
@@ -190,7 +190,8 @@ int main(int argc, char **argv) {
       g.front++;
       gb_move_point(&g, 1);
       e.x += 1;
-      waddch(textArea, c);
+			winsch(textArea, c);
+      //waddch(textArea, c);
       //wclear(textArea);
       //printw(g.buf);
     }
