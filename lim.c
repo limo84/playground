@@ -51,8 +51,27 @@ int read_file_to_buffer(GapBuffer *g, Editor *e, char* filename) {
 int print_status_line(WINDOW *statArea, Editor e, GapBuffer g, int c) {
   wmove(statArea, 0, 0);
   attrset(COLOR_PAIR(2));
-  mvwprintw(statArea, 0, 0, "c: %d, e: (%d, %d), f: %d, lines: %d\t\t", c, e.y, e.x, g.front, e.rows);
+  mvwprintw(statArea, 0, 0, "c: %d, e: (%d, %d), f: %d, lines: %d, point: %d, current: %c\t\t", 
+        c, e.y, e.x, g.front, e.rows, g.point, g.buf[g.point]);
   attrset(COLOR_PAIR(1));
+}
+
+#define MIN(a, b) (a < b) ? (a) : (b)
+#define MAX(a, b) (a > b) ? (a) : (b)
+
+int gb_move_point(GapBuffer *g, int8_t direction) {
+  
+  bool in_front = (g->point <= g->front);
+  g->point += direction;
+  //g.pointer = MIN(g.pointer, MAXLENGTH);
+  if (in_front && g->point > g->front) {
+    g->point += g->gap;
+  }
+  else if (!in_front && g->point < g->front + g->gap) {
+    g->point -= g->gap;
+  }
+
+  g->point = MAX(0, g->point);
 }
 
 int gb_jump(GapBuffer g) {
@@ -61,7 +80,7 @@ int gb_jump(GapBuffer g) {
     memmove(g.buf + g.point, g.buf + g.point + g.gap, n);
   }
   else if (g.point > g.front + g.gap) {
-    memmove(g.buf + g.front + g.gap, g.bu //TODO 
+    //memmove(g.buf + g.front + g.gap, g.bu //TODO 
   }
 }
 
@@ -152,6 +171,7 @@ int main(int argc, char **argv) {
 
     if (c == KEY_RIGHT) {
       if (e.x < 10) {
+        gb_move_point(&g, 1);
         e.x += 1;
         wmove(textArea, e.y, e.x);
       }
@@ -159,6 +179,7 @@ int main(int argc, char **argv) {
     
     if (c == KEY_LEFT) {
       if (e.x > 0) {
+        gb_move_point(&g, -1);
         e.x -= 1;
         wmove(textArea, e.y, e.x);
       }
@@ -167,6 +188,7 @@ int main(int argc, char **argv) {
     if (c >= 32 && c <= 126) {
       g.buf[g.front] = c;
       g.front++;
+      gb_move_point(&g, 1);
       e.x += 1;
       waddch(textArea, c);
       //wclear(textArea);
