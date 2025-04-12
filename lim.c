@@ -3,8 +3,11 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <assert.h>
 
 #include <stdio.h>
+
+#define ASSERT(c) assert(c)
 
 #define CTRL(c) ((c) & 037)
 #define STR_Q 17
@@ -26,7 +29,6 @@ typedef struct {
   uint16_t x, y;
   uint16_t rows, cols;
 } Editor;
-
 
 void die(const char *format, ...) {
   va_list args;
@@ -53,8 +55,8 @@ int read_file_to_buffer(GapBuffer *g, Editor *e, char* filename) {
 int print_status_line(WINDOW *statArea, Editor e, GapBuffer g, int c) {
   wmove(statArea, 0, 0);
   attrset(COLOR_PAIR(2));
-  mvwprintw(statArea, 0, 0, "c: %d, e: (%d, %d), f: %d, lines: %d, point: %d, current: %c\t\t", 
-        c, e.y, e.x, g.front, e.rows, g.point, g.buf[g.point]);
+  mvwprintw(statArea, 0, 0, "c: %d, e: (%d, %d), f: %d, ls: %d, p: %d, C: %c, g: %d\t\t", 
+        c, e.y, e.x, g.front, e.rows, g.point, g.buf[g.point], g.gap);
   attrset(COLOR_PAIR(1));
 }
 
@@ -62,18 +64,16 @@ int print_status_line(WINDOW *statArea, Editor e, GapBuffer g, int c) {
 #define MAX(a, b) (a > b) ? (a) : (b)
 
 int gb_move_point(GapBuffer *g, int8_t direction) {
-  
   bool in_front = (g->point <= g->front);
   g->point += direction;
-  //g.pointer = MIN(g.pointer, MAXLENGTH);
-  if (in_front && g->point > g->front) {
+	if (in_front && g->point > g->front) {
     g->point += g->gap;
   }
   else if (!in_front && g->point < g->front + g->gap) {
     g->point -= g->gap;
   }
-
   g->point = MAX(0, g->point);
+  g->point = MIN(g->point, g->size);
 }
 
 int gb_jump(GapBuffer g) {
@@ -83,7 +83,7 @@ int gb_jump(GapBuffer g) {
   }
   else if (g.point > g.front + g.gap) {
 		size_t n = g.point - (g.front + g.gap);
-    memmove(g.buf + g.front, g.buf + g.point - n, n); //TODO 
+    memmove(g.buf + g.front, g.buf + g.point - n, n); 
   }
 }
 
@@ -97,7 +97,8 @@ int main(int argc, char **argv) {
   WINDOW *textArea;
   WINDOW *statArea;
   Editor e = { .rows = 1 };
-  GapBuffer g = { .gap = 10000, g.size = 10000 };
+  GapBuffer g = { .point = 0, .front = 0, .gap = 10000, .size = 10000 };
+	assert(g.point < g.size);
  
 	g.buf = calloc(g.size, sizeof(char));
   getmaxyx(stdscr, e.rows, e.cols);
@@ -107,9 +108,7 @@ int main(int argc, char **argv) {
   mvwin(textArea, 0, 4);
   vline(ACS_VLINE, e.rows); // ??
   mvwin(statArea, e.rows - 1, 0);
-  
-  
-  /** die!!! */
+	assert(g.point < g.size);
 
   if (!has_colors()) {
     die("No Colors\n");
@@ -118,7 +117,7 @@ int main(int argc, char **argv) {
   init_pair(2, COLOR_BLACK, COLOR_GREEN);
   wattrset(textArea, COLOR_PAIR(1));
   wattrset(statArea, COLOR_PAIR(2));
-
+	assert(g.point < g.size);
 
   if (false && argc > 1) {
     read_file_to_buffer(&g, &e, argv[1]);
@@ -127,19 +126,20 @@ int main(int argc, char **argv) {
     wrefresh(textArea);
   }
   print_status_line(statArea, e, g, 0);
+  wrefresh(statArea);
+	assert(g.point < g.size);
 
   raw();
   keypad(textArea, TRUE);
   noecho();
 
   for (int i = 0; i < e.rows; i++) { 
-    mvwprintw(lineArea, i, 0, "%d", i + 101);
+    mvwprintw(lineArea, i, 0, "%d", i);
   }
   wrefresh(lineArea);
   
-  //wprintw(statArea, "asdasdasdasd");
-  //wrefresh(statArea);
-  
+	assert(g.point < g.size);
+
   int c;
   while ((c = wgetch(textArea)) != STR_Q) {
     
@@ -184,14 +184,12 @@ int main(int argc, char **argv) {
     
     else if (c >= 32 && c <= 126) {
       gb_jump(g);
+      winsch(textArea, c);
 			g.buf[g.front] = c;
+			g.gap--;
       g.front++;
       gb_move_point(&g, 1);
       e.x += 1;
-      winsch(textArea, c);
-      //waddch(textArea, c);
-      //wclear(textArea);
-      //printw(g.buf);
     }
 
     else if (c == 127) {
@@ -218,7 +216,6 @@ int main(int argc, char **argv) {
   }
   
   clear();
-  //move(0, 0);
   endwin();
   return 0;
 }
