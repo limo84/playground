@@ -16,6 +16,7 @@
 
 typedef struct {
   char *buf;
+	uint32_t size;
   uint32_t front;
   uint32_t gap;
   uint32_t point;
@@ -77,11 +78,12 @@ int gb_move_point(GapBuffer *g, int8_t direction) {
 
 int gb_jump(GapBuffer g) {
   if (g.point < g.front) {
-    size_t n = g.point - g.front;
-    memmove(g.buf + g.point, g.buf + g.point + g.gap, n);
+    size_t n = g.front - g.point;
+    memmove(g.buf + g.point + g.gap, g.buf + g.point, n);
   }
   else if (g.point > g.front + g.gap) {
-    //memmove(g.buf + g.front + g.gap, g.bu //TODO 
+		size_t n = g.point - (g.front + g.gap);
+    memmove(g.buf + g.front, g.buf + g.point - n, n); //TODO 
   }
 }
 
@@ -94,16 +96,11 @@ int main(int argc, char **argv) {
   WINDOW *lineArea;
   WINDOW *textArea;
   WINDOW *statArea;
-
   Editor e = { .rows = 1 };
-  GapBuffer g = { .gap = 10000 };
-
-  g.buf = calloc(10000, sizeof(char));
-  //e.cols = count_cols();  
-  //e.rows = count_rows();
-
+  GapBuffer g = { .gap = 10000, g.size = 10000 };
+ 
+	g.buf = calloc(g.size, sizeof(char));
   getmaxyx(stdscr, e.rows, e.cols);
-
   lineArea = newwin(e.rows - 1, 4, 0, 0);
   textArea = newwin(e.rows - 1, e.cols - 4, 0, 0);
   statArea = newwin(1, e.cols, 0, 0);
@@ -113,7 +110,6 @@ int main(int argc, char **argv) {
   
   
   /** die!!! */
-  //die("rows: %d. cols: %d\n", e.rows, e.cols);
 
   if (!has_colors()) {
     die("No Colors\n");
@@ -177,7 +173,7 @@ int main(int argc, char **argv) {
       }
     }
     
-    else if (c == LK_ENTER) {
+    else if (c == CTRL('o')) {
       g.buf[g.front] = '\n';
       g.front++;
       e.y += 1;
@@ -187,7 +183,8 @@ int main(int argc, char **argv) {
     }
     
     else if (c >= 32 && c <= 126) {
-      g.buf[g.front] = c;
+      gb_jump(g);
+			g.buf[g.front] = c;
       g.front++;
       gb_move_point(&g, 1);
       e.x += 1;
@@ -204,9 +201,17 @@ int main(int argc, char **argv) {
       wmove(textArea, e.y, e.x);
     }
     
-    //clear();
-    wrefresh(textArea);
-    //printw(g.buf);
+		//draw front
+		wmove(textArea, 20, 0);
+		wclrtoeol(textArea);
+		mvwaddnstr(textArea, 20, 0, g.buf, g.front);
+    // draw back
+		wmove(textArea, 22, 0);
+		wclrtoeol(textArea);
+		uint32_t back = g.front + g.gap;
+		mvwaddnstr(textArea, 22, 0, g.buf + back, g.size - back); 
+    
+		wrefresh(textArea);
     print_status_line(statArea, e, g, c);
     wrefresh(statArea);
     wmove(textArea, e.y, e.x); 
