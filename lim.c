@@ -6,6 +6,7 @@
 
 #include <stdio.h>
 
+#define CTRL(c) ((c) & 037)
 #define STR_Q 17
 #define LK_ENTER 10
 #define LK_UP 65
@@ -146,30 +147,21 @@ int main(int argc, char **argv) {
   int c;
   while ((c = wgetch(textArea)) != STR_Q) {
     
-    if (c == LK_ENTER) {
-      g.buf[g.front] = '\n';
-      g.front++;
-      e.y += 1;
-      e.x = 0;
-      e.rows += 1;
-      waddch(textArea, c);
-    }
-
-    if (c == KEY_UP) {
+    if (c == KEY_UP || c == CTRL('i')) {
       if (e.y > 0) {
         e.y -= 1;
         wmove(textArea, e.y, e.x);
       }
     }
     
-    if (c == LK_DOWN) {
+    else if (c == LK_DOWN || c == CTRL('k')) {
       if (e.y < e.rows) {
         e.y += 1;
         wmove(textArea, e.y, e.x);
       }
     } 
 
-    if (c == KEY_RIGHT) {
+    else if (c == KEY_RIGHT || c == CTRL('l')) {
       if (g.point < 10) {
         gb_move_point(&g, 1);
         e.x += 1;
@@ -177,26 +169,35 @@ int main(int argc, char **argv) {
       }
     }
     
-    if (c == KEY_LEFT) {
+    else if (c == KEY_LEFT || c == CTRL('j')) {
       if (e.x > 0) {
         gb_move_point(&g, -1);
         e.x -= 1;
         wmove(textArea, e.y, e.x);
       }
     }
-
-    if (c >= 32 && c <= 126) {
+    
+    else if (c == LK_ENTER) {
+      g.buf[g.front] = '\n';
+      g.front++;
+      e.y += 1;
+      e.x = 0;
+      e.rows += 1;
+      waddch(textArea, c);
+    }
+    
+    else if (c >= 32 && c <= 126) {
       g.buf[g.front] = c;
       g.front++;
       gb_move_point(&g, 1);
       e.x += 1;
-			winsch(textArea, c);
+      winsch(textArea, c);
       //waddch(textArea, c);
       //wclear(textArea);
       //printw(g.buf);
     }
 
-    if (c == 127) {
+    else if (c == 127) {
       g.buf[g.front] = 0;
       g.front--;
       e.x -= 1;
