@@ -19,7 +19,7 @@
 
 typedef struct {
   char *buf;
-	uint32_t size;
+  uint32_t size;
   uint32_t front;
   uint32_t gap;
   uint32_t point;
@@ -54,10 +54,8 @@ int read_file_to_buffer(GapBuffer *g, Editor *e, char* filename) {
 
 int print_status_line(WINDOW *statArea, Editor e, GapBuffer g, int c) {
   wmove(statArea, 0, 0);
-  attrset(COLOR_PAIR(2));
   mvwprintw(statArea, 0, 0, "c: %d, e: (%d, %d), f: %d, ls: %d, p: %d, C: %c, g: %d\t\t", 
         c, e.y, e.x, g.front, e.rows, g.point, g.buf[g.point], g.gap);
-  attrset(COLOR_PAIR(1));
 }
 
 #define MIN(a, b) (a < b) ? (a) : (b)
@@ -93,6 +91,10 @@ int main(int argc, char **argv) {
   initscr();
   start_color();
   atexit((void*)endwin);
+
+  struct timeval tp;
+  unsigned long millis = 1000, old_millis = 1000;
+	unsigned long delta = 1000;
   
   WINDOW *lineArea;
   WINDOW *textArea;
@@ -116,6 +118,7 @@ int main(int argc, char **argv) {
   }
   init_pair(1, COLOR_GREEN, COLOR_BLACK);
   init_pair(2, COLOR_BLACK, COLOR_GREEN);
+  init_pair(3, COLOR_RED, COLOR_BLACK);
   wattrset(textArea, COLOR_PAIR(1));
   wattrset(statArea, COLOR_PAIR(2));
   ASSERT(g.point < g.size);
@@ -185,7 +188,7 @@ int main(int argc, char **argv) {
     
     else if (c >= 32 && c <= 126) {
       gb_jump(&g);
-      winsch(textArea, c);
+      // winsch(textArea, c);
       g.buf[g.front] = c;
       g.gap--;
       g.front++;
@@ -201,19 +204,27 @@ int main(int argc, char **argv) {
     }
     
     //draw front
-    wmove(textArea, 20, 0);
-    wclrtoeol(textArea);
-    mvwaddnstr(textArea, 20, 0, g.buf, g.front);
+    wmove(textArea, 0, 0);
+    wclear(textArea);
+    mvwaddnstr(textArea, 0, 0, g.buf, g.front);
+    // wprintw(textArea, "%s", g.buf);
+
     // draw back
-    wmove(textArea, 22, 0);
-    wclrtoeol(textArea);
+    // wmove(textArea, 22, 0);
+    // wclrtoeol(textArea);
     uint32_t back = g.front + g.gap;
-    mvwaddnstr(textArea, 22, 0, g.buf + back, g.size - back); 
+    wrefresh(textArea);
+
+    wattrset(textArea, COLOR_PAIR(3));
+    waddnstr(textArea, g.buf + back, g.size - back); 
+    // wprintw(textArea, "%s", g.buf + back);
+
+    wattrset(textArea, COLOR_PAIR(1));
 
     wrefresh(textArea);
     print_status_line(statArea, e, g, c);
     wrefresh(statArea);
-    wmove(textArea, e.y, e.x); 
+    wmove(textArea, e.y, e.x);
   }
   
   clear();
