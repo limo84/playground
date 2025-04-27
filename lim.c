@@ -147,21 +147,22 @@ int main(int argc, char **argv) {
   int c;
   while ((c = wgetch(textArea)) != STR_Q) {
     
-    if (c == KEY_UP || c == CTRL('i')) {
+    // if (c == KEY_UP || c == CTRL('i')) {
+    if (c == KEY_UP) {
       if (e.y > 0) {
         e.y -= 1;
         wmove(textArea, e.y, e.x);
       }
     }
     
-    else if (c == LK_DOWN || c == CTRL('k')) {
+    else if (c == LK_DOWN) {
       if (e.y < e.rows) {
         e.y += 1;
         wmove(textArea, e.y, e.x);
       }
     } 
 
-    else if (c == KEY_RIGHT || c == CTRL('l')) {
+    else if (c == KEY_RIGHT) {
       if (g.point < 10) {
         gb_move_point(&g, 1);
         e.x += 1;
@@ -169,7 +170,7 @@ int main(int argc, char **argv) {
       }
     }
     
-    else if (c == KEY_LEFT || c == CTRL('j')) {
+    else if (c == KEY_LEFT) {
       if (e.x > 0) {
         gb_move_point(&g, -1);
         e.x -= 1;
@@ -177,13 +178,16 @@ int main(int argc, char **argv) {
       }
     }
     
-    else if (c == CTRL('o')) {
+    else if (c == LK_ENTER) {
+      gb_jump(&g);
       g.buf[g.front] = '\n';
+      g.gap--;
       g.front++;
+      gb_move_point(&g, 1);
       e.y += 1;
       e.x = 0;
-      e.rows += 1;
-      waddch(textArea, c);
+      // e.rows += 1;
+      // waddch(textArea, '\n');
     }
     
     else if (c >= 32 && c <= 126) {
@@ -196,12 +200,12 @@ int main(int argc, char **argv) {
       e.x += 1;
     }
 
-    else if (c == 127) {
-      g.buf[g.front] = 0;
-      g.front--;
-      e.x -= 1;
-      wmove(textArea, e.y, e.x);
-    }
+    // else if (c == 127) {
+    //   g.buf[g.front] = 0;
+    //   g.front--;
+    //   e.x -= 1;
+    //   wmove(textArea, e.y, e.x);
+    // }
     
     //draw front
     wmove(textArea, 0, 0);
