@@ -17,18 +17,11 @@
 #define LK_RIGHT 67
 #define LK_LEFT 68
 
-typedef struct {
-  char *buf;
-  uint32_t size;
-  uint32_t front;
-  uint32_t gap;
-  uint32_t point;
-} GapBuffer;
+#define MIN(a, b) (a < b) ? (a) : (b)
+#define MAX(a, b) (a > b) ? (a) : (b)
 
-typedef struct {
-  uint16_t x, y;
-  uint16_t rows, cols;
-} Editor;
+
+// ********************* #MISC *********************************/
 
 void die(const char *format, ...) {
   va_list args;
@@ -39,7 +32,17 @@ void die(const char *format, ...) {
   exit(0);
 }
 
-int read_file_to_buffer(GapBuffer *g, Editor *e, char* filename) {
+/******************** #GAPBUFFER *******************************/
+
+typedef struct {
+  char *buf;
+  uint32_t cap;
+  uint32_t size;
+  uint32_t front;
+  uint32_t point;
+} GapBuffer;
+
+int read_file_to_buffer(GapBuffer *g, char* filename) {
   FILE *file = fopen(filename, "r");
   if (!file) {
     exit(1);
@@ -52,104 +55,77 @@ int read_file_to_buffer(GapBuffer *g, Editor *e, char* filename) {
   }
 }
 
+uint32_t gb_gap(GapBuffer *g) {
+  return g->cap - g->size;
+}
 
-
-#define MIN(a, b) (a < b) ? (a) : (b)
-#define MAX(a, b) (a > b) ? (a) : (b)
+uint32_t gb_pos(GapBuffer *g) {
+  return g->point + (g->point > g->front) * gb_gap(g);
+}
 
 char gb_get_current(GapBuffer *g) {
-  return g->buf[g->point];
+  return g->buf[gb_pos(g)];
 }
 
-uint8_t gb_get_line_position(GapBuffer *g) {
-  return 3;
-  if (g->point = 0)
-    return 0;
-
-  int i = 0;
-  for (int i = 0; true; i++) {
-    if (g->buf[g->point - i] == '\n')
-      return i;
+int gb_jump(GapBuffer *g) {
+  if (g->front > g->point) {
+    size_t n = g->front - g->point;
+    memmove(g->buf + g->point + gb_gap(g), g->buf + g->point, n);
+    g->front = g->point;
+  }
+  else if (g->point > g->front) {
+    size_t n = g->point - g->front;
+    memmove(g->buf + g->front, g->buf + g->point - n, n);
+    g->front = g->point;
   }
 }
 
-bool gb_move_point_right(GapBuffer *g) {
-  bool in_front = (g->point <= g->front);
-  g->point++;
-  if (in_front && g->point > g->front) {
-    g->point += g->gap;
+/************************* #EDITOR ******************************/
+
+typedef struct {
+  uint16_t x, y;
+  uint16_t rows, cols;
+} Editor;
+
+
+
+uint16_t ed_line_width(Editor *e, GapBuffer *g) {
+  int i = e->x;
+  for (; true; i++) {
+    // TODO if (g->point + i > gb_
   }
-  g->point = MIN(g->point, g->size); //?
-  return true;
 }
 
-bool gb_move_point_left(GapBuffer *g) {
-  if (g->point == 0)
-    return false;
-  bool in_back = (g->point >= g->front + g->gap);
-  g->point--;
-  if (in_back && g->point < g->front + g->gap) {
-    g->point -= g->gap;
+void editor_move_left(Editor *e, GapBuffer *g, WINDOW *area, uint8_t amount) {
+  uint8_t moved = 0;
+  if (e->x > amount) {
+    moved = amount;
+    e->x -= amount;
   }
-  return true;
-}
-
-void editor_move_left(Editor *e, GapBuffer *g, WINDOW *area) {
-  if (!gb_move_point_right(g))
-    return;
-
-  if (gb_get_current(g) == '\n') {
-    e->x = 3;
+  else if (e->x > 0) {
+    moved = e->x;
+    e->x = 0;
+  }
+  else if (e->y > 0) {
+    moved = 1; // ??
     e->y -= 1;
   }
-  else {
-    e->x -= 1;
-  }
+  g->point -= moved;
   wmove(area, e->y, e->x);
 }
 
 void editor_move_right(Editor *e, GapBuffer *g, WINDOW *area) {
-  if (gb_move_point_right(g)) {
-    if (gb_get_current(g) == '\n') {
-      e->x = 0;
-      e->y += 1;
-    }
-    else {
-      e->x += 1;
-    }
-    wmove(area, e->y, e->x);
-  }
+  g->point++;
+  e->x++;
+  wmove(area, e->y, e->x);
 }
 
-int gb_move_point(GapBuffer *g, int8_t direction) {
-  bool in_front = (g->point <= g->front);
-  g->point += direction;
-  if (in_front && g->point > g->front) {
-    g->point += g->gap;
-  }
-  else if (!in_front && g->point < g->front + g->gap) {
-    g->point -= g->gap;
-  }
-  g->point = MAX(0, g->point);
-  g->point = MIN(g->point, g->size);
-}
 
-int gb_jump(GapBuffer *g) {
-  if (g->point < g->front) {
-    size_t n = g->front - g->point;
-    memmove(g->buf + g->point + g->gap, g->buf + g->point, n);
-    g->front = g->point;
-  }
-  else if (g->point > g->front + g->gap) {
-    size_t n = g->point - (g->front + g->gap);
-    memmove(g->buf + g->front, g->buf + g->point - n, n); 
-  }
-}
 
 int print_status_line(WINDOW *statArea, Editor *e, GapBuffer *g, int c) {
   wmove(statArea, 0, 0);
-  mvwprintw(statArea, 0, 0, "c: %d, e: (%d, %d), f: %d, ls: %d, p: %d, C: %c, g: %d, linepos: %d\t\t", 
-        c, e->y, e->x, g->front, e->rows, g->point, g->buf[g->point], g->gap, gb_get_line_position(g));
+  mvwprintw(statArea, 0, 0, "last: %d, ed: (%d, %d), pos: %d, front: %d, C: %d, size: %d \t\t", 
+        c, e->y, e->x, gb_pos(g), g->front, gb_get_current(g), g->size);
 }
 
 int main(int argc, char **argv) {
@@ -160,16 +136,16 @@ int main(int argc, char **argv) {
 
   struct timeval tp;
   unsigned long millis = 1000, old_millis = 1000;
-	unsigned long delta = 1000;
+  unsigned long delta = 1000;
   
   WINDOW *lineArea;
   WINDOW *textArea;
   WINDOW *statArea;
   Editor e = { .rows = 1 };
-  GapBuffer g = { .point = 0, .front = 0, .gap = 10000, .size = 10000 };
-  ASSERT(g.point < g.size);
+  GapBuffer g = { .point = 0, .front = 0, .size = 0, .cap = 10000 };
+  ASSERT(g.point < g.cap);
  
-  g.buf = calloc(g.size, sizeof(char));
+  g.buf = calloc(g.cap, sizeof(char));
   getmaxyx(stdscr, e.rows, e.cols);
   lineArea = newwin(e.rows - 1, 4, 0, 0);
   textArea = newwin(e.rows - 1, e.cols - 4, 0, 0);
@@ -177,7 +153,7 @@ int main(int argc, char **argv) {
   mvwin(textArea, 0, 4);
   vline(ACS_VLINE, e.rows); // ??
   mvwin(statArea, e.rows - 1, 0);
-  ASSERT(g.point < g.size);
+  ASSERT(g.point < g.cap);
 
   if (!has_colors()) {
     die("No Colors\n");
@@ -187,17 +163,17 @@ int main(int argc, char **argv) {
   init_pair(3, COLOR_RED, COLOR_BLACK);
   wattrset(textArea, COLOR_PAIR(1));
   wattrset(statArea, COLOR_PAIR(2));
-  ASSERT(g.point < g.size);
+  ASSERT(g.point < g.cap);
 
   if (false && argc > 1) {
-    read_file_to_buffer(&g, &e, argv[1]);
+    read_file_to_buffer(&g, argv[1]);
     wprintw(textArea, g.buf);
     wmove(textArea, 0, 0);
     wrefresh(textArea);
   }
   print_status_line(statArea, &e, &g, 0);
   wrefresh(statArea);
-  ASSERT(g.point < g.size);
+  ASSERT(g.point < g.cap);
 
   raw();
   keypad(textArea, TRUE);
@@ -208,7 +184,7 @@ int main(int argc, char **argv) {
   }
   wrefresh(lineArea);
   
-  ASSERT(g.point < g.size);
+  ASSERT(g.point < g.cap);
 
   int c;
   while ((c = wgetch(textArea)) != STR_Q) {
@@ -233,15 +209,15 @@ int main(int argc, char **argv) {
     }
     
     else if (c == KEY_LEFT) {
-      editor_move_left(&e, &g, textArea);
+      editor_move_left(&e, &g, textArea, 1);
     }
     
     else if (c == LK_ENTER) {
       gb_jump(&g);
       g.buf[g.front] = '\n';
-      g.gap--;
+      g.size++;
       g.front++;
-      gb_move_point(&g, 1);
+      g.point++;
       e.y += 1;
       e.x = 0;
       // e.rows += 1;
@@ -252,9 +228,9 @@ int main(int argc, char **argv) {
       gb_jump(&g);
       // winsch(textArea, c);
       g.buf[g.front] = c;
-      g.gap--;
+      g.size++;
       g.front++;
-      gb_move_point(&g, 1);
+      g.point++;
       e.x += 1;
     }
 
@@ -274,11 +250,11 @@ int main(int argc, char **argv) {
     // draw back
     // wmove(textArea, 22, 0);
     // wclrtoeol(textArea);
-    uint32_t back = g.front + g.gap;
+    uint32_t back = g.cap - g.size + g.front;
     wrefresh(textArea);
 
     wattrset(textArea, COLOR_PAIR(3));
-    waddnstr(textArea, g.buf + back, g.size - back); 
+    waddnstr(textArea, g.buf + back, g.cap - back); 
     // wprintw(textArea, "%s", g.buf + back);
 
     wattrset(textArea, COLOR_PAIR(1));
