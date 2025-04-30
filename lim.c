@@ -42,18 +42,6 @@ typedef struct {
   uint32_t point;
 } GapBuffer;
 
-int read_file_to_buffer(GapBuffer *g, char* filename) {
-  FILE *file = fopen(filename, "r");
-  if (!file) {
-    exit(1);
-  }
-    
-  char c;
-  for (g->point = 0; (c = fgetc(file)) != EOF; g->point++) {
-    g->buf[g->point] = c;
-    //e->rows += (c == '\n') ? 1 : 0;
-  }
-}
 
 uint32_t gb_gap(GapBuffer *g) {
   return g->cap - g->size;
@@ -88,11 +76,12 @@ typedef struct {
 } Editor;
 
 
-
 uint16_t ed_line_width(Editor *e, GapBuffer *g) {
   int i = e->x;
-  for (; true; i++) {
-    // TODO if (g->point + i > gb_
+  for (int i = e->x; true; i++) {
+    if (g->point + i >= g->size || gb_get_current(g) == LK_ENTER) {
+      return i;
+    }
   }
 }
 
@@ -120,12 +109,26 @@ void editor_move_right(Editor *e, GapBuffer *g, WINDOW *area) {
   wmove(area, e->y, e->x);
 }
 
-
+int read_file(Editor *e, GapBuffer *g, char* filename) {
+  FILE *file = fopen(filename, "r");
+  if (!file) {
+    die("File not found\n");
+  }
+    
+  char buffer[1000]; // todo
+  char c;
+  for (int i = 0; (c = fgetc(file)) != EOF; i++) {
+    buffer[i] = c;
+  }
+  //die("buffer: %d\n", strlen(buffer));
+  g->size = strlen(buffer);
+  memmove(g->buf + g->cap - g->size, buffer, g->size);
+}
 
 int print_status_line(WINDOW *statArea, Editor *e, GapBuffer *g, int c) {
   wmove(statArea, 0, 0);
-  mvwprintw(statArea, 0, 0, "last: %d, ed: (%d, %d), pos: %d, front: %d, C: %d, size: %d \t\t", 
-        c, e->y, e->x, gb_pos(g), g->front, gb_get_current(g), g->size);
+  mvwprintw(statArea, 0, 0, "last: %d, ed: (%d, %d), width: %d, pos: %d, front: %d, C: %d, size: %d \t\t", 
+        c, e->y, e->x, ed_line_width(e, g), gb_pos(g), g->front, gb_get_current(g), g->size);
 }
 
 int main(int argc, char **argv) {
@@ -151,7 +154,7 @@ int main(int argc, char **argv) {
   textArea = newwin(e.rows - 1, e.cols - 4, 0, 0);
   statArea = newwin(1, e.cols, 0, 0);
   mvwin(textArea, 0, 4);
-  vline(ACS_VLINE, e.rows); // ??
+  //vline(ACS_VLINE, e.rows); // ??
   mvwin(statArea, e.rows - 1, 0);
   ASSERT(g.point < g.cap);
 
@@ -165,19 +168,27 @@ int main(int argc, char **argv) {
   wattrset(statArea, COLOR_PAIR(2));
   ASSERT(g.point < g.cap);
 
-  if (false && argc > 1) {
-    read_file_to_buffer(&g, argv[1]);
-    wprintw(textArea, g.buf);
+  raw();
+  keypad(textArea, TRUE);
+  noecho();
+  
+  if (argc > 1) {
+    read_file(&e, &g, argv[1]);
     wmove(textArea, 0, 0);
+    wclear(textArea);
+    mvwaddnstr(textArea, 0, 0, g.buf, g.front);
+    // draw back
+    uint32_t back = g.cap - g.size + g.front;
+    wrefresh(textArea);
+    wattrset(textArea, COLOR_PAIR(3));
+    waddnstr(textArea, g.buf + back, g.cap - back); 
+    wattrset(textArea, COLOR_PAIR(1));
+
     wrefresh(textArea);
   }
   print_status_line(statArea, &e, &g, 0);
   wrefresh(statArea);
   ASSERT(g.point < g.cap);
-
-  raw();
-  keypad(textArea, TRUE);
-  noecho();
 
   for (int i = 0; i < e.rows; i++) { 
     mvwprintw(lineArea, i, 0, "%d", i);
@@ -245,18 +256,11 @@ int main(int argc, char **argv) {
     wmove(textArea, 0, 0);
     wclear(textArea);
     mvwaddnstr(textArea, 0, 0, g.buf, g.front);
-    // wprintw(textArea, "%s", g.buf);
-
     // draw back
-    // wmove(textArea, 22, 0);
-    // wclrtoeol(textArea);
     uint32_t back = g.cap - g.size + g.front;
     wrefresh(textArea);
-
     wattrset(textArea, COLOR_PAIR(3));
     waddnstr(textArea, g.buf + back, g.cap - back); 
-    // wprintw(textArea, "%s", g.buf + back);
-
     wattrset(textArea, COLOR_PAIR(1));
 
     wrefresh(textArea);

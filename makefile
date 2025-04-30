@@ -1,6 +1,6 @@
 
 lim: lim.c
-	gcc lim.c -lcurses && ./a.out
+	gcc -g lim.c -lcurses && ./a.out testfile.txt
 
 game: game.c
 	gcc game.c -lcurses && ./a.out
