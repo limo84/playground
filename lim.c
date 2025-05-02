@@ -48,7 +48,12 @@ uint32_t gb_gap(GapBuffer *g) {
 }
 
 uint32_t gb_pos(GapBuffer *g) {
-  return g->point + (g->point > g->front) * gb_gap(g);
+  return g->point + (g->point >= g->front) * gb_gap(g);
+}
+
+uint32_t gb_pos_offset(GapBuffer *g, uint32_t offset) {
+  uint32_t n = g->point + offset;
+  return n + (n >= g->front) * gb_gap(g);
 }
 
 char gb_get_current(GapBuffer *g) {
@@ -77,35 +82,87 @@ typedef struct {
 
 
 uint16_t ed_line_width(Editor *e, GapBuffer *g) {
-  int i = e->x;
-  for (int i = e->x; true; i++) {
-    if (g->point + i >= g->size || gb_get_current(g) == LK_ENTER) {
-      return i;
+  uint32_t old_point = g->point;
+  uint32_t point_left = 0;
+  
+  if (g->point > 0 && gb_get_current(g) == 10) 
+    g->point--;
+  // MOVE LEFT
+  for (; g->point > 0; g->point--) {
+    if (gb_get_current(g) == 10) {
+      point_left = g->point + 1;
+    }
+  }
+
+  for (g->point = point_left; true; g->point++) {
+    if (g->point >= g->size || gb_get_current(g) == 10) {
+      uint32_t width = g->point - point_left;
+      g->point = old_point;
+      return width;
+    }
+  }
+}
+
+uint16_t ed_line_width_from_point(Editor *e, GapBuffer *g) {
+  uint32_t old_point = g->point;
+  for (; true; g->point++) {
+    if (g->point >= g->size || gb_get_current(g) == 10) {
+      uint32_t width = g->point - old_point;
+      g->point = old_point;
+      return width;
     }
   }
 }
 
 void editor_move_left(Editor *e, GapBuffer *g, WINDOW *area, uint8_t amount) {
-  uint8_t moved = 0;
   if (e->x > amount) {
-    moved = amount;
+    g->point -= amount;
     e->x -= amount;
   }
   else if (e->x > 0) {
-    moved = e->x;
+    g->point -= e->x;
     e->x = 0;
   }
   else if (e->y > 0) {
-    moved = 1; // ??
+    g->point -= 1;
     e->y -= 1;
+    e->x = ed_line_width(e, g);
   }
-  g->point -= moved;
   wmove(area, e->y, e->x);
 }
 
-void editor_move_right(Editor *e, GapBuffer *g, WINDOW *area) {
+void editor_move_right(Editor *e, GapBuffer *g, WINDOW *area, uint8_t amount) {
+  
+  uint16_t line_width = ed_line_width(e, g);
+  
+  if (g->point >= g->size - 1) {
+    return;
+  }
+  else if (gb_get_current(g) == 10) {
+    g->point++;
+    e->y++;
+    e->x = 0;
+  }
+  else if (e->x + amount > line_width) {
+    g->point += e->x - line_width;
+    e->x = line_width;
+  }
+  else {
+    g->point += amount;
+    e->x += amount;
+  }
+  wmove(area, e->y, e->x);
+}
+
+void editor_move_right_depr(Editor *e, GapBuffer *g, WINDOW *area) {
+  if (gb_get_current(g) == 10) {
+    e->y++;
+    e->x = 0;
+  }
+  else {
+    e->x++;
+  }
   g->point++;
-  e->x++;
   wmove(area, e->y, e->x);
 }
 
@@ -127,8 +184,8 @@ int read_file(Editor *e, GapBuffer *g, char* filename) {
 
 int print_status_line(WINDOW *statArea, Editor *e, GapBuffer *g, int c) {
   wmove(statArea, 0, 0);
-  mvwprintw(statArea, 0, 0, "last: %d, ed: (%d, %d), width: %d, pos: %d, front: %d, C: %d, size: %d \t\t", 
-        c, e->y, e->x, ed_line_width(e, g), gb_pos(g), g->front, gb_get_current(g), g->size);
+  mvwprintw(statArea, 0, 0, "last: %d, ed: (%d, %d), width: %d, pos: %d, front: %d, C: %d, point: %d, size: %d \t\t", 
+        c, e->y, e->x, ed_line_width(e, g), gb_pos(g), g->front, gb_get_current(g), g->point, g->size);
 }
 
 int main(int argc, char **argv) {
@@ -144,7 +201,7 @@ int main(int argc, char **argv) {
   WINDOW *lineArea;
   WINDOW *textArea;
   WINDOW *statArea;
-  Editor e = { .rows = 1 };
+  Editor e = { .rows = 1, .x = 0, .y = 0};
   GapBuffer g = { .point = 0, .front = 0, .size = 0, .cap = 10000 };
   ASSERT(g.point < g.cap);
  
@@ -188,7 +245,9 @@ int main(int argc, char **argv) {
   }
   print_status_line(statArea, &e, &g, 0);
   wrefresh(statArea);
-  ASSERT(g.point < g.cap);
+  ASSERT(e.x == 0);
+  ASSERT(e.y == 0);
+  wmove(textArea, e.x, e.y);
 
   for (int i = 0; i < e.rows; i++) { 
     mvwprintw(lineArea, i, 0, "%d", i);
@@ -216,7 +275,7 @@ int main(int argc, char **argv) {
     } 
 
     else if (c == KEY_RIGHT) {
-      editor_move_right(&e, &g, textArea);
+      editor_move_right(&e, &g, textArea, 1);
     }
     
     else if (c == KEY_LEFT) {
@@ -251,7 +310,8 @@ int main(int argc, char **argv) {
     //   e.x -= 1;
     //   wmove(textArea, e.y, e.x);
     // }
-    
+    print_status_line(statArea, &e, &g, c);
+    wrefresh(statArea);
     //draw front
     wmove(textArea, 0, 0);
     wclear(textArea);
@@ -262,10 +322,7 @@ int main(int argc, char **argv) {
     wattrset(textArea, COLOR_PAIR(3));
     waddnstr(textArea, g.buf + back, g.cap - back); 
     wattrset(textArea, COLOR_PAIR(1));
-
     wrefresh(textArea);
-    print_status_line(statArea, &e, &g, c);
-    wrefresh(statArea);
     wmove(textArea, e.y, e.x);
   }
   
