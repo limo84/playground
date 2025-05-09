@@ -23,7 +23,7 @@
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
-//typedef uint64_t u64;
+typedef uint64_t u64;
 
 // ********************* #MISC *********************************/
 
@@ -50,6 +50,7 @@ typedef struct {
   uint16_t lin, col;
   uint16_t maxlines;
 } GapBuffer;
+
 
 void gb_init(GapBuffer *g, uint32_t init_cap) {
   g->cap = init_cap;
@@ -120,24 +121,6 @@ void gb_refresh_line_width(GapBuffer *g) {
   g->point = old_point;
 }
 
-/************************* #EDITOR ******************************/
-
-typedef struct {
-  uint16_t x, y;
-  uint16_t rows, cols;
-} Editor;
-
-uint16_t ed_line_width_from_point(Editor *e, GapBuffer *g) {
-  uint32_t old_point = g->point;
-  for (; true; g->point++) {
-    if (g->point >= g->size || gb_get_current(g) == 10) {
-      uint32_t width = g->point - old_point;
-      g->point = old_point;
-      return width;
-    }
-  }
-}
-
 void gb_move_right(GapBuffer *g) {
   if (g->point >= g->size - 1) {
     return;
@@ -169,58 +152,35 @@ void gb_move_left(GapBuffer *g) {
   }
 }
 
-void editor_move_left(Editor *e, GapBuffer *g, WINDOW *area, uint8_t amount) {
-  if (e->x > amount) {
-    g->point -= amount;
-    e->x -= amount;
-  }
-  else if (e->x > 0) {
-    g->point -= e->x;
-    e->x = 0;
-  }
-  else if (e->y > 0) {
-    g->point -= 1;
-    e->y -= 1;
-    gb_refresh_line_width(g);
-  }             
-  wmove(area, e->y, g->line_width);
-}
-
-void editor_move_right(Editor *e, GapBuffer *g, WINDOW *area, uint8_t amount) {
-  
-  if (g->point >= g->size - 1) {
+void gb_move_up(GapBuffer *g) {
+  if (g->lin == 0) {
     return;
   }
-  else if (gb_get_current(g) == 10) {
-    g->point++;
-    e->y++;
-    e->x = 0;
-    gb_refresh_line_width(g);
-  }
-  else if (e->x + amount > g->line_width) {
-    g->point += e->x - g->line_width;
-    e->x = g->line_width;
-  }
-  else {
-    g->point += amount;
-    e->x += amount;
-  }
-  wmove(area, e->y, e->x);
+  g->point = g->line_start - 1;
+  gb_refresh_line_width(g);
+  g->lin--;
+  g->col = MIN(g->col, g->line_width - 1);
+  g->point -= (g->col < g->line_width - 1) ? 
+      g->line_width - g->col - 1 : 0; 
 }
 
-void editor_move_right_depr(Editor *e, GapBuffer *g, WINDOW *area) {
-  if (gb_get_current(g) == 10) {
-    e->y++;
-    e->x = 0;
+void gb_move_down(GapBuffer *g) {
+  if (g->lin >= g->maxlines - 2) { // TODO ?
+    return;
   }
-  else {
-    e->x++;
-  }
-  g->point++;
-  wmove(area, e->y, e->x);
+  g->point = g->line_end + 1;
+  gb_refresh_line_width(g);
+  g->lin++;
+  g->col = MIN(g->col, g->line_width - 1);
+  g->point += g->col;
 }
+/************************* #EDITOR ******************************/
 
-int read_file(Editor *e, GapBuffer *g, char* filename) {
+typedef struct {
+  uint16_t rows, cols;
+} Screen;
+
+int read_file(GapBuffer *g, char* filename) {
   FILE *file = fopen(filename, "r");
   if (!file) {
     die("File not found\n");
@@ -242,12 +202,12 @@ int read_file(Editor *e, GapBuffer *g, char* filename) {
   return 0;
 }
 
-int print_status_line(WINDOW *statArea, Editor *e, GapBuffer *g, int c) {
+int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   wmove(statArea, 0, 0);
   mvwprintw(statArea, 0, 0, "last: %d, ed: (%d, %d), width: %d, pos: %d, front: %d, C: %d, point: %d, "
-      "size: %d, lstart: %d, lend: %d \t\t\t",
+      "size: %d, lstart: %d, lend: %d, maxl: %d \t\t\t",
       c, g->lin + 1, g->col + 1, g->line_width, gb_pos(g), g->front, gb_get_current(g), g->point, g->size, 
-      g->line_start, g->line_end);
+      g->line_start, g->line_end, g->maxlines);
 }
 
 int main(int argc, char **argv) {
@@ -263,19 +223,19 @@ int main(int argc, char **argv) {
   WINDOW *lineArea;
   WINDOW *textArea;
   WINDOW *statArea;
-  Editor e = { .rows = 1, .x = 0, .y = 0};
+  Screen screen;
   GapBuffer g;
   gb_init(&g, 10000);                     
   ASSERT(g.point < g.cap);
  
   g.buf = calloc(g.cap, sizeof(char));
-  getmaxyx(stdscr, e.rows, e.cols);
-  lineArea = newwin(e.rows - 1, 4, 0, 0);
-  textArea = newwin(e.rows - 1, e.cols - 4, 0, 0);
-  statArea = newwin(1, e.cols, 0, 0);
+  getmaxyx(stdscr, screen.rows, screen.cols);
+  lineArea = newwin(screen.rows - 1, 4, 0, 0);
+  textArea = newwin(screen.rows - 1, screen.cols - 4, 0, 0);
+  statArea = newwin(1, screen.cols, 0, 0);
   mvwin(textArea, 0, 4);
-  //vline(ACS_VLINE, e.rows); // ??
-  mvwin(statArea, e.rows - 1, 0);
+  //vline(ACS_VLINE, screen.rows); // ??
+  mvwin(statArea, screen.rows - 1, 0);
   ASSERT(g.point < g.cap);
 
   if (!has_colors()) {
@@ -293,7 +253,7 @@ int main(int argc, char **argv) {
   noecho();
   
   if (argc > 1) {
-    read_file(&e, &g, argv[1]);
+    read_file(&g, argv[1]);
     wmove(textArea, 0, 0);
     wclear(textArea);
     mvwaddnstr(textArea, 0, 0, g.buf, g.front);
@@ -306,12 +266,11 @@ int main(int argc, char **argv) {
 
     wrefresh(textArea);
   }
-  print_status_line(statArea, &e, &g, 0);
+  print_status_line(statArea, &g, 0);
   wrefresh(statArea);
-  //ASSERT(e.x == 0);
-  //ASSERT(e.y == 0);
   wmove(textArea, 0, 0);
 
+  // TODO make function
   for (int i = 1; i < g.maxlines; i++) { 
     mvwprintw(lineArea, i - 1, 0, "%d", i);
   }
@@ -324,27 +283,19 @@ int main(int argc, char **argv) {
     
     // if (c == KEY_UP || c == CTRL('i')) {
     if (c == KEY_UP) {
-      if (e.y > 0) {
-        //e.y -= 1;
-        //wmove(textArea, e.y, e.x);
-      }
+      gb_move_up(&g);
     }
     
     else if (c == LK_DOWN) {
-      if (e.y < e.rows) {
-        //e.y += 1;
-        //wmove(textArea, e.y, e.x);
-      }
+      gb_move_down(&g);
     } 
 
     else if (c == KEY_RIGHT) {
       gb_move_right(&g);
-      //editor_move_right(&e, &g, textArea, 1);
     }
     
     else if (c == KEY_LEFT) {
       gb_move_left(&g);
-      //editor_move_left(&e, &g, textArea, 1);
     }
     
     else if (c == LK_ENTER) {
@@ -353,10 +304,9 @@ int main(int argc, char **argv) {
       g.size++;
       g.front++;
       g.point++;
-      e.y += 1;
-      e.x = 0;
-      // e.rows += 1;
-      // waddch(textArea, '\n');
+      g.lin += 1;
+      g.col = 0;
+      gb_refresh_line_width(&g);
     }
     
     else if (c >= 32 && c <= 126) {
@@ -366,16 +316,13 @@ int main(int argc, char **argv) {
       g.size++;
       g.front++;
       g.point++;
-      e.x += 1;
+      g.lin += 1;
     }
 
     // else if (c == 127) {
-    //   g.buf[g.front] = 0;
-    //   g.front--;
-    //   e.x -= 1;
-    //   wmove(textArea, e.y, e.x);
     // }
-    print_status_line(statArea, &e, &g, c);
+
+    print_status_line(statArea, &g, c);
     wrefresh(statArea);
     //draw front
     wmove(textArea, 0, 0);
