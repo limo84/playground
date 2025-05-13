@@ -79,14 +79,16 @@ char gb_get_current(GapBuffer *g) {
 }
 
 int gb_jump(GapBuffer *g) {
-  if (g->front > g->point) {
+  // MOVE DATA TO END
+  if (g->point < g->front) {
     size_t n = g->front - g->point;
     memmove(g->buf + g->point + gb_gap(g), g->buf + g->point, n);
     g->front = g->point;
   }
+  // MOVE DATA TO FRONT 
   else if (g->point > g->front) {
     size_t n = g->point - g->front;
-    memmove(g->buf + g->front, g->buf + g->point - n, n);
+    memmove(g->buf + g->front, g->buf + gb_gap(g) + g->point - n, n);
     g->front = g->point;
   }
 }
@@ -316,7 +318,7 @@ int main(int argc, char **argv) {
       g.size++;
       g.front++;
       g.point++;
-      g.lin += 1;
+      g.col += 1;
     }
 
     // else if (c == 127) {
