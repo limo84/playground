@@ -148,7 +148,7 @@ void gb_move_left(GapBuffer *g) {
     gb_refresh_line_width(g);
     g->lin--;
     g->col = g->line_width - 1;
-  } 
+  }
   else {
     g->col--;
   }
@@ -281,8 +281,10 @@ int main(int argc, char **argv) {
   ASSERT(g.point < g.cap);
 
   int c;
+  bool changed;
   while ((c = wgetch(textArea)) != STR_Q) {
     
+    changed = false;
     // if (c == KEY_UP || c == CTRL('i')) {
     if (c == KEY_UP) {
       gb_move_up(&g);
@@ -299,6 +301,25 @@ int main(int argc, char **argv) {
     else if (c == KEY_LEFT) {
       gb_move_left(&g);
     }
+
+    else if (c == 263) {
+      g.point--;
+      gb_refresh_line_width(&g);
+      uint16_t prev_line_end = g.line_end;
+      g.point++;
+
+      if (g.col > 0) {
+        g.col--;
+      } else {
+        g.lin--;
+        g.col = prev_line_end;
+      }      
+      gb_jump(&g);
+      g.point--;
+      g.size--;
+      g.front--;
+      changed = true;
+    }
     
     else if (c == LK_ENTER) {
       gb_jump(&g);
@@ -309,6 +330,7 @@ int main(int argc, char **argv) {
       g.lin += 1;
       g.col = 0;
       gb_refresh_line_width(&g);
+      changed = true;
     }
     
     else if (c >= 32 && c <= 126) {
@@ -319,6 +341,8 @@ int main(int argc, char **argv) {
       g.front++;
       g.point++;
       g.col += 1;
+      gb_refresh_line_width(&g);
+      changed = true;
     }
 
     // else if (c == 127) {
@@ -326,16 +350,23 @@ int main(int argc, char **argv) {
 
     print_status_line(statArea, &g, c);
     wrefresh(statArea);
-    //draw front
-    wmove(textArea, 0, 0);
-    wclear(textArea);
-    mvwaddnstr(textArea, 0, 0, g.buf, g.front);
+    // draw front
+    if (changed) {
+      wmove(textArea, 0, 0);
+      wclear(textArea);
+      u32 point = g.point;
+      for (g.point = 0; g.point < g.size; g.point++) {
+        waddch(textArea, gb_get_current(&g));
+      }
+      g.point = point;
+    }
+    //mvwaddnstr(textArea, 0, 0, g.buf, g.front);
     // draw back
-    uint32_t back = g.cap - g.size + g.front;
-    wrefresh(textArea);
-    wattrset(textArea, COLOR_PAIR(3));
-    waddnstr(textArea, g.buf + back, g.cap - back); 
-    wattrset(textArea, COLOR_PAIR(1));
+    //uint32_t back = g.cap - g.size + g.front;
+    //wrefresh(textArea);
+    //wattrset(textArea, COLOR_PAIR(3));
+    //waddnstr(textArea, g.buf + back, g.cap - back); 
+    //wattrset(textArea, COLOR_PAIR(1));
     wrefresh(textArea);
     wmove(textArea, g.lin, g.col);
   }
