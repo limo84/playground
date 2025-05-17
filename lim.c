@@ -204,6 +204,16 @@ int read_file(GapBuffer *g, char* filename) {
   return 0;
 }
 
+void print_text_area(WINDOW *textArea, GapBuffer *g) {
+  wmove(textArea, 0, 0);
+  wclear(textArea);
+  u32 point = g->point;
+  for (g->point = 0; g->point < g->size; g->point++) {
+    waddch(textArea, gb_get_current(g));
+  }
+  g->point = point;
+}
+
 int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   wmove(statArea, 0, 0);
   mvwprintw(statArea, 0, 0, "last: %d, ed: (%d, %d), width: %d, pos: %d, front: %d, C: %d, point: %d, "
@@ -256,16 +266,7 @@ int main(int argc, char **argv) {
   
   if (argc > 1) {
     read_file(&g, argv[1]);
-    wmove(textArea, 0, 0);
-    wclear(textArea);
-    mvwaddnstr(textArea, 0, 0, g.buf, g.front);
-    // draw back
-    uint32_t back = g.cap - g.size + g.front;
-    wrefresh(textArea);
-    wattrset(textArea, COLOR_PAIR(3));
-    waddnstr(textArea, g.buf + back, g.cap - back); 
-    wattrset(textArea, COLOR_PAIR(1));
-
+    print_text_area(textArea, &g);
     wrefresh(textArea);
   }
   print_status_line(statArea, &g, 0);
@@ -352,13 +353,7 @@ int main(int argc, char **argv) {
     wrefresh(statArea);
     // draw front
     if (changed) {
-      wmove(textArea, 0, 0);
-      wclear(textArea);
-      u32 point = g.point;
-      for (g.point = 0; g.point < g.size; g.point++) {
-        waddch(textArea, gb_get_current(&g));
-      }
-      g.point = point;
+      print_text_area(textArea, &g);
     }
     //mvwaddnstr(textArea, 0, 0, g.buf, g.front);
     // draw back
