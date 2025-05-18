@@ -133,26 +133,33 @@ void gb_refresh_line_width(GapBuffer *g) {
   g->point = old_point;
 }
 
-void gb_backpace(GapBuffer *g) {
-  
-  // END OF PREV LINE
+u16 gb_prev_line_width(GapBuffer *g) {
   g->point--;
   gb_refresh_line_width(g);
-  u16 prev_line_end = g->line_end;
+  u16 prev_line_end = g->line_end - g->line_start;
   g->point++;
+}
+
+bool gb_backspace(GapBuffer *g) {
+  
+  if (g->col == 0 && g->lin == 0) {
+    return false;
+  }
 
   if (g->col > 0) {
     g->col--;
-  } else {
+  } 
+  else {
     g->lin--;
     g->maxlines--;
-    g->col = prev_line_end;
-  }      
+    g->col = gb_prev_line_width(g);
+  }
   gb_jump(g);
   g->point--;
   g->size--;
   g->front--;
   gb_refresh_line_width(g);
+  return true;
 }
 
 void gb_move_right(GapBuffer *g) {
@@ -256,10 +263,23 @@ void draw_line_area(GapBuffer *g, WINDOW *lineArea) {
 
 int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   wmove(statArea, 0, 0);
-  mvwprintw(statArea, 0, 0, "last: %d, ed: (%d, %d), width: %d, pos: %d, front: %d, C: %d, point: %d, "
-      "size: %d, lstart: %d, lend: %d, maxl: %d \t\t\t",
-      c, g->lin + 1, g->col + 1, g->line_width, gb_pos(g), g->front, gb_get_current(g), g->point, g->size, 
-      g->line_start, g->line_end, g->maxlines);
+  mvwprintw(statArea, 0, 0, "last: %d, ", c);
+  wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
+  //wprintw(statArea, "width: %d, ", g->line_width);
+  //wprintw(statArea, "pos: %d, ", gb_pos(g));
+  //wprintw(statArea, "front: %d, ", g->front);
+  //wprintw(statArea, "C: %d, ", gb_get_current(g));
+  //wprintw(statArea, "point: %d, ", g->point);
+  //wprintw(statArea, "size: %d, ", g->size);
+  //wprintw(statArea, "lstart: %d, ", g->line_start);
+  //wprintw(statArea, "lend: %d, ", g->line_end);
+  wprintw(statArea, "maxl: %d, ", g->maxlines);
+  wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
+  //wprintw(statArea, "\t\t\t");
+//   ,  "
+ //     ",  ,
+   //   c, , , , , , , , 
+   //   , , );
 }
 
 int main(int argc, char **argv) {
@@ -289,7 +309,6 @@ int main(int argc, char **argv) {
   
   popupArea = newwin(5, 30, 10, 10);
   
-  
   mvwin(textArea, 0, 4);
   //vline(ACS_VLINE, screen.rows); // ??
   mvwin(statArea, screen.rows - 1, 0);
@@ -301,8 +320,9 @@ int main(int argc, char **argv) {
   init_pair(1, COLOR_GREEN, COLOR_BLACK);
   init_pair(2, COLOR_BLACK, COLOR_GREEN);
   init_pair(3, COLOR_RED, COLOR_BLACK);
+  init_pair(4, COLOR_BLACK, COLOR_RED);
   wattrset(textArea, COLOR_PAIR(1));
-  wattrset(statArea, COLOR_PAIR(2));
+  wattrset(statArea, COLOR_PAIR(4));
   ASSERT(g.point < g.cap);
 
   raw();
@@ -314,7 +334,7 @@ int main(int argc, char **argv) {
     print_text_area(textArea, &g);
     wrefresh(textArea);
   }
-  print_status_line(statArea, &g, 0);
+  //print_status_line(statArea, &g, 0);
   wrefresh(statArea);
   wmove(textArea, 0, 0);
 
@@ -345,8 +365,8 @@ int main(int argc, char **argv) {
     }
 
     else if (c == 263) {
+      changed = gb_backspace(&g);
       draw_line_area(&g, lineArea);
-      changed = true;
     }
     
     else if (c == LK_ENTER) {
@@ -388,10 +408,10 @@ int main(int argc, char **argv) {
     wrefresh(textArea);
     wmove(textArea, g.lin, g.col);
     
-    wresize(popupArea, 30, 60);
-    wbkgd(popupArea, COLOR_PAIR(2));
-    box(popupArea, ACS_VLINE, ACS_HLINE);
-    wrefresh(popupArea);
+    //wresize(popupArea, 30, 60);
+    //wbkgd(popupArea, COLOR_PAIR(2));
+    //box(popupArea, ACS_VLINE, ACS_HLINE);
+    //wrefresh(popupArea);
   }
   
   clear();
