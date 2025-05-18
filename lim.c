@@ -1,3 +1,6 @@
+//TODO Backspace at zero
+//TODO refresh line numbers
+
 #include <curses.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -98,9 +101,6 @@ void gb_refresh_line_width(GapBuffer *g) {
   uint32_t point_right = 0;
   uint32_t point_left = 0;
   
-  //if (g->point > 0 && gb_get_current(g) == 10) // 
-  //  g->point--;
-  
   // MOVE RIGHT
   for (; g->point < g->size; g->point++) {
     if (gb_get_current(g) == 10) {
@@ -176,6 +176,7 @@ void gb_move_down(GapBuffer *g) {
   g->col = MIN(g->col, g->line_width - 1);
   g->point += g->col;
 }
+
 /************************* #EDITOR ******************************/
 
 typedef struct {
@@ -197,7 +198,6 @@ int read_file(GapBuffer *g, char* filename) {
       g->maxlines++;
     }
   }
-  //die("buffer: %d\n", strlen(buffer));
   g->size = strlen(buffer);
   memmove(g->buf + g->cap - g->size, buffer, g->size);
   gb_refresh_line_width(g);
@@ -306,7 +306,7 @@ int main(int argc, char **argv) {
     else if (c == 263) {
       g.point--;
       gb_refresh_line_width(&g);
-      uint16_t prev_line_end = g.line_end;
+      u16 prev_line_end = g.line_end;
       g.point++;
 
       if (g.col > 0) {
@@ -355,13 +355,6 @@ int main(int argc, char **argv) {
     if (changed) {
       print_text_area(textArea, &g);
     }
-    //mvwaddnstr(textArea, 0, 0, g.buf, g.front);
-    // draw back
-    //uint32_t back = g.cap - g.size + g.front;
-    //wrefresh(textArea);
-    //wattrset(textArea, COLOR_PAIR(3));
-    //waddnstr(textArea, g.buf + back, g.cap - back); 
-    //wattrset(textArea, COLOR_PAIR(1));
     wrefresh(textArea);
     wmove(textArea, g.lin, g.col);
   }
