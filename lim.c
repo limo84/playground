@@ -1,5 +1,8 @@
-//TODO Backspace at zero
-//TODO refresh line numbers
+// TODO Backspace at zero
+// TODO Bug in gb_backspace
+// TODO refresh line numbers
+// TODO coredumps
+// TODO load file from opened editor
 
 #include <curses.h>
 #include <stdint.h>
@@ -78,7 +81,10 @@ uint32_t gb_pos_offset(GapBuffer *g, uint32_t offset) {
 }
 
 char gb_get_current(GapBuffer *g) {
-  return g->buf[gb_pos(g)];
+  u32 pos = gb_pos(g);
+  ASSERT(pos >= 0);
+  ASSERT(pos < g->cap);
+  return g->buf[pos];
 }
 
 int gb_jump(GapBuffer *g) {
@@ -121,6 +127,28 @@ void gb_refresh_line_width(GapBuffer *g) {
   g->line_end = point_right;    
   g->line_width = g->line_end - g->line_start + 1;
   g->point = old_point;
+}
+
+void gb_backpace(GapBuffer *g) {
+  
+  // END OF PREV LINE
+  g->point--;
+  gb_refresh_line_width(g);
+  u16 prev_line_end = g->line_end;
+  g->point++;
+
+  if (g->col > 0) {
+    g->col--;
+  } else {
+    g->lin--;
+    g->maxlines--;
+    g->col = prev_line_end;
+  }      
+  gb_jump(g);
+  g->point--;
+  g->size--;
+  g->front--;
+  gb_refresh_line_width(g);
 }
 
 void gb_move_right(GapBuffer *g) {
@@ -214,6 +242,14 @@ void print_text_area(WINDOW *textArea, GapBuffer *g) {
   g->point = point;
 }
 
+void draw_line_area(GapBuffer *g, WINDOW *lineArea) {
+  wclear(lineArea);
+  for (int i = 1; i < g->maxlines; i++) { 
+    mvwprintw(lineArea, i - 1, 0, "%d", i);
+  }
+  wrefresh(lineArea);
+}
+
 int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   wmove(statArea, 0, 0);
   mvwprintw(statArea, 0, 0, "last: %d, ed: (%d, %d), width: %d, pos: %d, front: %d, C: %d, point: %d, "
@@ -235,6 +271,7 @@ int main(int argc, char **argv) {
   WINDOW *lineArea;
   WINDOW *textArea;
   WINDOW *statArea;
+  WINDOW *popupArea;
   Screen screen;
   GapBuffer g;
   gb_init(&g, 10000);                     
@@ -245,6 +282,7 @@ int main(int argc, char **argv) {
   lineArea = newwin(screen.rows - 1, 4, 0, 0);
   textArea = newwin(screen.rows - 1, screen.cols - 4, 0, 0);
   statArea = newwin(1, screen.cols, 0, 0);
+  //popupArea = newwin(5, 30, 
   mvwin(textArea, 0, 4);
   //vline(ACS_VLINE, screen.rows); // ??
   mvwin(statArea, screen.rows - 1, 0);
@@ -273,11 +311,7 @@ int main(int argc, char **argv) {
   wrefresh(statArea);
   wmove(textArea, 0, 0);
 
-  // TODO make function
-  for (int i = 1; i < g.maxlines; i++) { 
-    mvwprintw(lineArea, i - 1, 0, "%d", i);
-  }
-  wrefresh(lineArea);
+  draw_line_area(&g, lineArea);
   
   ASSERT(g.point < g.cap);
 
@@ -304,21 +338,7 @@ int main(int argc, char **argv) {
     }
 
     else if (c == 263) {
-      g.point--;
-      gb_refresh_line_width(&g);
-      u16 prev_line_end = g.line_end;
-      g.point++;
-
-      if (g.col > 0) {
-        g.col--;
-      } else {
-        g.lin--;
-        g.col = prev_line_end;
-      }      
-      gb_jump(&g);
-      g.point--;
-      g.size--;
-      g.front--;
+      draw_line_area(&g, lineArea);
       changed = true;
     }
     
@@ -330,6 +350,9 @@ int main(int argc, char **argv) {
       g.point++;
       g.lin += 1;
       g.col = 0;
+      g.maxlines++;
+      draw_line_area(&g, lineArea);
+  
       gb_refresh_line_width(&g);
       changed = true;
     }
