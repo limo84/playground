@@ -4,12 +4,16 @@
 // TODO coredumps
 // TODO load file from opened editor
 
+// TODO list files with dirent, then choose
+
 #include <curses.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
 #include <assert.h>
+
+#include <dirent.h>
 
 #include <stdio.h>
 
@@ -282,7 +286,10 @@ int main(int argc, char **argv) {
   lineArea = newwin(screen.rows - 1, 4, 0, 0);
   textArea = newwin(screen.rows - 1, screen.cols - 4, 0, 0);
   statArea = newwin(1, screen.cols, 0, 0);
-  //popupArea = newwin(5, 30, 
+  
+  popupArea = newwin(5, 30, 10, 10);
+  
+  
   mvwin(textArea, 0, 4);
   //vline(ACS_VLINE, screen.rows); // ??
   mvwin(statArea, screen.rows - 1, 0);
@@ -380,6 +387,11 @@ int main(int argc, char **argv) {
     }
     wrefresh(textArea);
     wmove(textArea, g.lin, g.col);
+    
+    wresize(popupArea, 30, 60);
+    wbkgd(popupArea, COLOR_PAIR(2));
+    box(popupArea, ACS_VLINE, ACS_HLINE);
+    wrefresh(popupArea);
   }
   
   clear();
