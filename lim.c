@@ -134,6 +134,14 @@ void gb_refresh_line_width(GapBuffer *g) {
 }
 
 u16 gb_prev_line_width(GapBuffer *g) {
+  
+  // TODO ? for schleife bis num letzten \n  
+  if (g->lin == 0)
+    return 0;
+
+  if (g->col != 0)
+    return 0;
+  
   g->point--;
   gb_refresh_line_width(g);
   u16 prev_line_end = g->line_end - g->line_start;
