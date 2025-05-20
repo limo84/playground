@@ -273,7 +273,7 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   mvwprintw(statArea, 0, 0, "last: %d, ", c);
   wprintw(statArea, "ed: (%d, %d), ", g->lin + 1, g->col + 1);
   //wprintw(statArea, "width: %d, ", g->line_width);
-  //wprintw(statArea, "pos: %d, ", gb_pos(g));
+  wprintw(statArea, "pos: %d, ", gb_pos(g));
   //wprintw(statArea, "front: %d, ", g->front);
   //wprintw(statArea, "C: %d, ", gb_get_current(g));
   //wprintw(statArea, "point: %d, ", g->point);
@@ -281,7 +281,7 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
   wprintw(statArea, "maxl: %d, ", g->maxlines);
-  wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
+  //wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
   //wprintw(statArea, "\t\t\t");
 //   ,  "
  //     ",  ,
