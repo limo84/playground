@@ -134,10 +134,17 @@ void gb_refresh_line_width(GapBuffer *g) {
 }
 
 u16 gb_prev_line_width(GapBuffer *g) {
+  if (g->lin == 0)
+    return 0;
+  if (g->col > 0)
+    return 0;
+
   g->point--;
   gb_refresh_line_width(g);
-  u16 prev_line_end = g->line_end - g->line_start;
+  u16 prev_line_width = g->line_end - g->line_start;
   g->point++;
+
+  return prev_line_width;
 }
 
 bool gb_backspace(GapBuffer *g) {
