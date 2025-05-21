@@ -160,16 +160,26 @@ u16 gb_prev_line_width(GapBuffer *g) {
   return prev_line_width;
 }
 
-u16 gb_width_to_point(GapBuffer *g) {
+u16 gb_width_left(GapBuffer *g) {
   u32 old_point = g->point;
   for (int i = 0; i < 10000; i++) {
-    if (g->point - i == 0) {
+    if (g->point - i == 0)
       return i;
-    } 
-    if (i > 0 && gb_get_offset(g, -i) == LK_ENTER) {
+    if (i > 0 && gb_get_offset(g, -i) == LK_ENTER)
       return i;
-    }
   }
+  die("should never be reached");
+}
+
+u16 gb_width_right(GapBuffer *g) {
+  u32 old_point = g->point;
+  for (int i = 0; i < 10000; i++) {
+    if (g->point + i == g->size - 1)
+      return i;
+    if (gb_get_offset(g, i) == LK_ENTER)
+      return i;
+  }
+  die("should never be reached");
 }
 
 bool gb_backspace(GapBuffer *g) {
@@ -306,13 +316,10 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
   wprintw(statArea, "maxl: %d, ", g->maxlines);
-  wprintw(statArea, "wtp: %d, ", gb_width_to_point(g));
+  wprintw(statArea, "wl: %d, ", gb_width_left(g));
+  wprintw(statArea, "wr: %d, ", gb_width_right(g));
   //wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
   //wprintw(statArea, "\t\t\t");
-//   ,  "
- //     ",  ,
-   //   c, , , , , , , , 
-   //   , , );
 }
 
 int main(int argc, char **argv) {
