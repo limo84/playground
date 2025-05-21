@@ -1,9 +1,6 @@
-// TODO Backspace at zero
 // TODO Bug in gb_backspace
-// TODO refresh line numbers
 // TODO coredumps
 // TODO load file from opened editor
-
 // TODO list files with dirent, then choose
 
 #include <curses.h>
@@ -149,6 +146,18 @@ u16 gb_prev_line_width(GapBuffer *g) {
   return prev_line_width;
 }
 
+u16 gb_width_to_point(GapBuffer *g) {
+  u32 old_point = g->point;
+  for (int i = 0; i < 10000; i++) {
+    if (g->point - i == 0) {
+      return i;
+    } 
+    if (i > 0 && gb_get_current(g) == LK_ENTER) {
+      return i;
+    }
+  }
+}
+
 bool gb_backspace(GapBuffer *g) {
   
   if (g->col == 0 && g->lin == 0) {
@@ -283,7 +292,8 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
   wprintw(statArea, "maxl: %d, ", g->maxlines);
-  wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
+  wprintw(statArea, "wtp: %d, ", gb_width_to_point(g));
+  //wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
   //wprintw(statArea, "\t\t\t");
 //   ,  "
  //     ",  ,
