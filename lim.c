@@ -144,7 +144,8 @@ u16 gb_prev_line_width(GapBuffer *g) {
   gb_refresh_line_width(g);
   u16 prev_line_width = g->line_end - g->line_start;
   g->point++;
-
+  gb_refresh_line_width(g);
+  
   return prev_line_width;
 }
 
@@ -282,7 +283,7 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   //wprintw(statArea, "lstart: %d, ", g->line_start);
   //wprintw(statArea, "lend: %d, ", g->line_end);
   wprintw(statArea, "maxl: %d, ", g->maxlines);
-  //wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
+  wprintw(statArea, "prev: %d, ", gb_prev_line_width(g));
   //wprintw(statArea, "\t\t\t");
 //   ,  "
  //     ",  ,
