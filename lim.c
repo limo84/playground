@@ -101,7 +101,7 @@ int gb_jump(GapBuffer *g) {
   // MOVE DATA TO FRONT 
   else if (g->point > g->front) {
     size_t n = g->point - g->front;
-    memmove(g->buf + g->front, g->buf + gb_gap(g) + g->point - n, n);
+    memmove(g->buf + g->front, g->buf + gb_gap(g) + g->front, n);
     g->front = g->point;
   }
 }
