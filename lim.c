@@ -32,6 +32,11 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+
 // ********************* #MISC *********************************/
 
 void die(const char *format, ...) {
@@ -76,8 +81,12 @@ uint32_t gb_pos(GapBuffer *g) {
   return g->point + (g->point >= g->front) * gb_gap(g);
 }
 
-uint32_t gb_pos_offset(GapBuffer *g, uint32_t offset) {
-  uint32_t n = g->point + offset;
+u32 gb_pos_offset(GapBuffer *g, i32 offset) {
+  if (offset < 0 && g->point < -offset)
+    return 0;
+  if (offset > 0 && g->point + offset > g->size)
+    return 0;
+  u32 n = g->point + offset;
   return n + (n >= g->front) * gb_gap(g);
 }
 
@@ -85,6 +94,11 @@ char gb_get_current(GapBuffer *g) {
   u32 pos = gb_pos(g);
   ASSERT(pos >= 0);
   ASSERT(pos < g->cap);
+  return g->buf[pos];
+}
+
+char gb_get_offset(GapBuffer *g, i32 offset) {
+  u32 pos = gb_pos_offset(g, offset);
   return g->buf[pos];
 }
 
@@ -152,7 +166,7 @@ u16 gb_width_to_point(GapBuffer *g) {
     if (g->point - i == 0) {
       return i;
     } 
-    if (i > 0 && gb_get_current(g) == LK_ENTER) {
+    if (i > 0 && gb_get_offset(g, -i) == LK_ENTER) {
       return i;
     }
   }
