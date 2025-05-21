@@ -144,6 +144,7 @@ void gb_refresh_line_width(GapBuffer *g) {
   g->point = old_point;
 }
 
+// remove?
 u16 gb_prev_line_width(GapBuffer *g) {
   
   if (g->lin == 0)
@@ -166,7 +167,7 @@ u16 gb_width_left(GapBuffer *g) {
     if (g->point - i == 0)
       return i;
     if (i > 0 && gb_get_offset(g, -i) == LK_ENTER)
-      return i;
+      return i - 1;
   }
   die("should never be reached");
 }
@@ -184,20 +185,21 @@ u16 gb_width_right(GapBuffer *g) {
 
 bool gb_backspace(GapBuffer *g) {
   
-  if (g->col == 0 && g->lin == 0) {
+  if (g->point == 0) {
     return false;
   }
 
+  gb_jump(g);
   if (g->col > 0) {
     g->col--;
+    g->point--;
   } 
   else {
     g->lin--;
     g->maxlines--;
-    g->col = gb_prev_line_width(g);
+    g->point--;
+    g->col = gb_width_left(g);
   }
-  gb_jump(g);
-  g->point--;
   g->size--;
   g->front--;
   gb_refresh_line_width(g);
