@@ -134,9 +134,10 @@ void gb_refresh_line_width(GapBuffer *g) {
 }
 
 u16 gb_prev_line_width(GapBuffer *g) {
+  
   if (g->lin == 0)
     return 0;
-  if (g->col > 0)
+  if (g->col != 0)
     return 0;
 
   g->point--;
