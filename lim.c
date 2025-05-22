@@ -260,6 +260,19 @@ void gb_move_down(GapBuffer *g) {
   g->point += g->col;
 }
 
+void gb_write_to_file(GapBuffer *g) {
+  FILE *file = fopen("testfile1.txt", "w");
+  if (!file) {
+    die("cant write to file");
+  }
+  u32 old_point = g->point;
+  for (g->point = 0; g->point < g->size; g->point++) {
+    char c = gb_get_current(g);
+    putc(c, file);
+  }
+  g->point = old_point;
+}
+
 /************************* #EDITOR ******************************/
 
 typedef struct {
@@ -409,6 +422,10 @@ int main(int argc, char **argv) {
     else if (c == 263) {
       changed = gb_backspace(&g);
       draw_line_area(&g, lineArea);
+    }
+
+    else if (c == CTRL('s')) {
+      gb_write_to_file(&g);
     }
     
     else if (c == LK_ENTER) {
