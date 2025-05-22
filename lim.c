@@ -37,6 +37,9 @@ typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
 
+typedef DIR Folder;
+typedef struct dirent Entry;
+
 // ********************* #MISC *********************************/
 
 void die(const char *format, ...) {
@@ -337,6 +340,24 @@ int print_status_line(WINDOW *statArea, GapBuffer *g, int c) {
   //wprintw(statArea, "\t\t\t");
 }
 
+void read_fs(WINDOW *popupArea) {
+  Folder *folder = opendir(".");
+  Entry *entry = NULL;
+  
+  if (!folder) {
+    return;
+  }
+  
+  while ((entry = readdir(folder)) != NULL) {
+    printf("%s\n", entry->d_name);
+  }
+  closedir(folder);
+}
+
+typedef enum {
+  TEXT, OPEN
+} State;
+
 int main(int argc, char **argv) {
 
   initscr();
@@ -351,9 +372,11 @@ int main(int argc, char **argv) {
   WINDOW *textArea;
   WINDOW *statArea;
   WINDOW *popupArea;
+
   Screen screen;
+  State state = TEXT;
   GapBuffer g;
-  gb_init(&g, 10000);                     
+  gb_init(&g, 10000);
   ASSERT(g.point < g.cap);
  
   g.buf = calloc(g.cap, sizeof(char));
@@ -363,6 +386,9 @@ int main(int argc, char **argv) {
   statArea = newwin(1, screen.cols, 0, 0);
   
   popupArea = newwin(5, 30, 10, 10);
+  wresize(popupArea, 30, 60);
+  wbkgd(popupArea, COLOR_PAIR(2));
+  box(popupArea, ACS_VLINE, ACS_HLINE);
   
   mvwin(textArea, 0, 4);
   //vline(ACS_VLINE, screen.rows); // ??
@@ -455,6 +481,10 @@ int main(int argc, char **argv) {
       changed = true;
     }
 
+    else if (c == CTRL('r')) {
+      state = OPEN;
+    }
+
     // else if (c == 127) {
     // }
 
@@ -466,11 +496,8 @@ int main(int argc, char **argv) {
     }
     wrefresh(textArea);
     wmove(textArea, g.lin, g.col);
-    
-    //wresize(popupArea, 30, 60);
-    //wbkgd(popupArea, COLOR_PAIR(2));
-    //box(popupArea, ACS_VLINE, ACS_HLINE);
-    //wrefresh(popupArea);
+    if (state == OPEN)
+      wrefresh(popupArea);
   }
   
   clear();
